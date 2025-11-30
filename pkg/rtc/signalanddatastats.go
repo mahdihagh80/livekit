@@ -63,6 +63,8 @@ type BytesTrackStats struct {
 	telemetryListener                    func() types.ParticipantTelemetryListener
 	reporter                             roomobs.TrackReporter
 	done                                 core.Fuse
+	mu                                   sync.Mutex
+	Address                              string
 }
 
 func NewBytesTrackStats(
@@ -134,8 +136,10 @@ func (s *BytesTrackStats) Stop() {
 func (s *BytesTrackStats) report() {
 	if recv := s.recv.Swap(0); recv > 0 {
 		packets := s.recvMessages.Swap(0)
+		key := telemetry.StatsKeyForData(s.country, livekit.StreamType_UPSTREAM, s.pID, s.trackID)
+		key.Addr = s.Address
 		s.telemetryListener().OnTrackStats(
-			telemetry.StatsKeyForData(s.country, livekit.StreamType_UPSTREAM, s.pID, s.trackID),
+			key,
 			&livekit.AnalyticsStat{
 				Streams: []*livekit.AnalyticsStream{
 					{
@@ -149,8 +153,10 @@ func (s *BytesTrackStats) report() {
 
 	if send := s.send.Swap(0); send > 0 {
 		packets := s.sendMessages.Swap(0)
+		key := telemetry.StatsKeyForData(s.country, livekit.StreamType_DOWNSTREAM, s.pID, s.trackID)
+		key.Addr = s.Address
 		s.telemetryListener().OnTrackStats(
-			telemetry.StatsKeyForData(s.country, livekit.StreamType_DOWNSTREAM, s.pID, s.trackID),
+			key,
 			&livekit.AnalyticsStat{
 				Streams: []*livekit.AnalyticsStream{
 					{
@@ -163,11 +169,25 @@ func (s *BytesTrackStats) report() {
 	}
 }
 
+func (s *BytesTrackStats) ChangeAddress(address string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.Address == "" {
+		s.Address = address
+		s.report()
+	} else {
+		s.report()
+		s.Address = address
+	}
+}
+
 func (s *BytesTrackStats) worker() {
 	ticker := time.NewTicker(5 * time.Second)
 	defer func() {
 		ticker.Stop()
+		s.mu.Lock()
 		s.report()
+		s.mu.Unlock()
 	}()
 
 	for {
@@ -175,7 +195,9 @@ func (s *BytesTrackStats) worker() {
 		case <-s.done.Watch():
 			return
 		case <-ticker.C:
+			s.mu.Lock()
 			s.report()
+			s.mu.Unlock()
 		}
 	}
 }

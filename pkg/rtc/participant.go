@@ -248,6 +248,8 @@ type ParticipantParams struct {
 	ExcludeIPv6LocalCandidates        bool
 	EnableWarp                        bool
 	MediaBatchIOEnabled               bool
+	StreamRoom                        bool
+	StreamerIdentity                  string
 }
 
 type ParticipantImpl struct {
@@ -2265,6 +2267,8 @@ func (p *ParticipantImpl) setupSubscriptionManager() {
 		SubscriptionLimitAudio:   p.params.SubscriptionLimitAudio,
 		SubscribePacer:           p.params.SubscribePacer,
 		UseOneShotSignallingMode: p.params.UseOneShotSignallingMode,
+		StreamRoom:               p.params.StreamRoom,
+		StreamerIdentity:         p.params.StreamerIdentity,
 	})
 	p.SubscriptionManager.OnSubscribeStatusChanged(func(publisherID livekit.ParticipantID, subscribed bool) {
 		p.listener().OnSubscribeStatusChanged(p, publisherID, subscribed)
@@ -2783,7 +2787,15 @@ func (p *ParticipantImpl) onPrimaryTransportInitialConnected() {
 	}
 
 	if !p.sessionStartRecorded.Swap(true) {
-		prometheus.RecordSessionStartTime(int(p.ProtocolVersion()), p.params.EnableWarp, p.GetClientInfo().GetSdk(), time.Since(p.params.SessionStartTime))
+		var addr string
+		for _, detail := range p.TransportManager.GetICEConnectionInfo() {
+			for _, candidate := range detail.Remote {
+				if candidate.SelectedOrder != 0 {
+					addr = candidate.Candidate.Address
+				}
+			}
+		}
+		prometheus.RecordSessionStartTime(int(p.ProtocolVersion()), p.params.EnableWarp, p.GetClientInfo().GetSdk(), time.Since(p.params.SessionStartTime), addr)
 		prometheus.IncrementParticipantRtcSuccess(1, p.params.EnableWarp, p.GetClientInfo().GetSdk())
 	}
 	p.updateState(livekit.ParticipantInfo_ACTIVE)

@@ -17,6 +17,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/livekit/livekit-server/pkg/geoip"
 	"math/rand"
 	"net"
 	"os"
@@ -298,6 +299,10 @@ func startServer(ctx context.Context, c *cli.Command) error {
 		return err
 	}
 
+	if err := geoip.Init(conf.GeoIP); err != nil {
+		return err
+	}
+
 	var cpuStatsOpts []hwstats.CPUStatsOption
 	if conf.NodeStats.HostCPU {
 		cpuStatsOpts = append(cpuStatsOpts, hwstats.WithHostCPU())
@@ -305,6 +310,8 @@ func startServer(ctx context.Context, c *cli.Command) error {
 	if err := prometheus.Init(string(currentNode.NodeID()), currentNode.NodeType(), cpuStatsOpts...); err != nil {
 		return err
 	}
+
+	prometheus.InitWithNodeIP(currentNode.NodeIP(), string(currentNode.NodeID()), currentNode.NodeType())
 
 	server, err := service.InitializeServer(conf, currentNode)
 	if err != nil {

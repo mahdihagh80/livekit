@@ -17,6 +17,7 @@ package rtc
 import (
 	"context"
 	"fmt"
+	"github.com/livekit/livekit-server/pkg/geoip"
 	"maps"
 	"math"
 	"slices"
@@ -505,6 +506,8 @@ func (r *Room) Join(
 
 	joinResponse := r.createJoinResponseLocked(participant, iceServers)
 	if err := participant.SendJoinResponse(joinResponse); err != nil {
+		clientASN := geoip.GetASOrganization(participant.GetClientInfo().GetAddress())
+		prometheus.PromServiceOperationCounterWithOperator.WithLabelValues("participant_join", "error", "send_response", clientASN, "").Add(1)
 		prometheus.RecordServiceOperationError("participant_join", "send_response")
 		return err
 	}
@@ -528,6 +531,8 @@ func (r *Room) Join(
 	}
 
 	prometheus.RecordServiceOperationSuccess("participant_join")
+	clientASN := geoip.GetASOrganization(participant.GetClientInfo().GetAddress())
+	prometheus.PromServiceOperationCounterWithOperator.WithLabelValues("participant_join", "success", "", clientASN, "").Add(1)
 
 	return nil
 }

@@ -16,6 +16,7 @@ package config
 
 import (
 	"fmt"
+	"github.com/livekit/livekit-server/pkg/geoip"
 	"os"
 	"reflect"
 	"strconv"
@@ -121,6 +122,8 @@ type Config struct {
 	EnableParticipantDataBlob bool `yaml:"enable_participant_data_blob,omitempty"`
 
 	API APIConfig `yaml:"api,omitempty"`
+
+	GeoIP geoip.Config `yaml:"geoip,omitempty"`
 }
 
 // WebTransportConfig is the node's HTTP/3 listener. QUIC has no plaintext mode,

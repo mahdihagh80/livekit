@@ -29,6 +29,7 @@ require (
 	github.com/moby/moby/client v0.6.1
 	github.com/olekukonko/tablewriter v1.1.4
 	github.com/ory/dockertest/v4 v4.0.0
+	github.com/oschwald/geoip2-golang/v2 v2.0.1
 	github.com/pion/datachannel v1.6.3
 	github.com/pion/dtls/v3 v3.1.9
 	github.com/pion/ice/v4 v4.4.0
@@ -87,6 +88,7 @@ require (
 	github.com/olekukonko/cat v0.0.0-20250911104152-50322a0618f6 // indirect
 	github.com/olekukonko/errors v1.3.0 // indirect
 	github.com/olekukonko/ll v0.1.8 // indirect
+	github.com/oschwald/maxminddb-golang/v2 v2.1.1 // indirect
 	github.com/petermattis/goid v0.0.0-20260918085751-abfca077860b // indirect
 	github.com/pion/transport/v5 v5.1.1 // indirect
 	github.com/puzpuzpuz/xsync/v4 v4.5.0 // indirect

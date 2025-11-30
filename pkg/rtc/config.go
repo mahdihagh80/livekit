@@ -17,6 +17,7 @@ package rtc
 import (
 	"github.com/pion/sdp/v3"
 	"github.com/pion/webrtc/v4"
+	"time"
 
 	"github.com/livekit/livekit-server/pkg/config"
 	"github.com/livekit/livekit-server/pkg/sfu"
@@ -80,6 +81,9 @@ func NewWebRTCConfig(conf *config.Config) (*WebRTCConfig, error) {
 
 	// we don't want to use active TCP on a server, clients should be dialing
 	webRTCConfig.SettingEngine.DisableActiveTCP(true)
+	webRTCConfig.SettingEngine.SetRelayAcceptanceMinWait(500 * time.Millisecond)
+	webRTCConfig.SettingEngine.SetPrflxAcceptanceMinWait(0)
+	webRTCConfig.SettingEngine.SetSrflxAcceptanceMinWait(0)
 
 	if rtcConf.PacketBufferSize == 0 {
 		rtcConf.PacketBufferSize = 500

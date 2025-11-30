@@ -446,6 +446,10 @@ func (t *MediaTrack) AddReceiver(receiver *webrtc.RTPReceiver, track sfu.TrackRe
 		newWR.OnStatsUpdate(func(_ *sfu.WebRTCReceiver, stat *livekit.AnalyticsStat) {
 			// send for only one codec, either primary (priority == 0) OR regressed codec
 			if priority == 0 || t.regressionTargetCodecReceived.Load() {
+				pair, _ := receiver.Transport().ICETransport().GetSelectedCandidatePair()
+				if pair != nil {
+					statsKey.Addr = pair.Remote.Address
+				}
 				t.params.TelemetryListener().OnTrackStats(statsKey, stat)
 
 				if cs, ok := telemetry.CondenseStat(stat); ok {
