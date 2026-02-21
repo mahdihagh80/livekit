@@ -86,6 +86,10 @@ func GetASOrganization(address string) string {
 		return "not found"
 	}
 
+	if record.Country.HasData() && record.Country.ISOCode != "IR" {
+		return "Foreign"
+	}
+
 	return record.Traits.AutonomousSystemOrganization
 }
 
