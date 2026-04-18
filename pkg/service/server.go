@@ -204,7 +204,7 @@ func NewLivekitServer(conf *config.Config,
 	}
 
 	go func() {
-		_ = http.ListenAndServe("127.0.0.1:1234", http.DefaultServeMux)
+		_ = http.ListenAndServe("127.0.0.1:"+strconv.Itoa(int(conf.PrometheusPort)+100), http.DefaultServeMux)
 	}()
 
 	return

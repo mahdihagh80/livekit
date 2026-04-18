@@ -64,7 +64,7 @@ type BytesTrackStats struct {
 	reporter                             roomobs.TrackReporter
 	done                                 core.Fuse
 	mu                                   sync.Mutex
-	Address                              string
+	ASN                                  string
 }
 
 func NewBytesTrackStats(
@@ -137,7 +137,7 @@ func (s *BytesTrackStats) report() {
 	if recv := s.recv.Swap(0); recv > 0 {
 		packets := s.recvMessages.Swap(0)
 		key := telemetry.StatsKeyForData(s.country, livekit.StreamType_UPSTREAM, s.pID, s.trackID)
-		key.Addr = s.Address
+		key.ASN = s.ASN
 		s.telemetryListener().OnTrackStats(
 			key,
 			&livekit.AnalyticsStat{
@@ -154,7 +154,7 @@ func (s *BytesTrackStats) report() {
 	if send := s.send.Swap(0); send > 0 {
 		packets := s.sendMessages.Swap(0)
 		key := telemetry.StatsKeyForData(s.country, livekit.StreamType_DOWNSTREAM, s.pID, s.trackID)
-		key.Addr = s.Address
+		key.ASN = s.ASN
 		s.telemetryListener().OnTrackStats(
 			key,
 			&livekit.AnalyticsStat{
@@ -166,18 +166,6 @@ func (s *BytesTrackStats) report() {
 				},
 			},
 		)
-	}
-}
-
-func (s *BytesTrackStats) ChangeAddress(address string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.Address == "" {
-		s.Address = address
-		s.report()
-	} else {
-		s.report()
-		s.Address = address
 	}
 }
 

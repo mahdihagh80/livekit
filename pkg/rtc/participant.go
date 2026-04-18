@@ -16,6 +16,7 @@ package rtc
 
 import (
 	"fmt"
+	"github.com/livekit/livekit-server/pkg/geoip"
 	"io"
 	"maps"
 	"math/rand"
@@ -438,6 +439,7 @@ func NewParticipant(params ParticipantParams) (*ParticipantImpl, error) {
 		p.GetTelemetryListener,
 		params.Reporter,
 	)
+	p.dataChannelStats.ASN = geoip.GetASOrganization(p.params.ClientInfo.Address)
 	p.reliableDataInfo.lastPubReliableSeq.Store(params.LastPubReliableSeq)
 
 	p.migrateState.Store(types.MigrateStateInit)
@@ -2787,15 +2789,7 @@ func (p *ParticipantImpl) onPrimaryTransportInitialConnected() {
 	}
 
 	if !p.sessionStartRecorded.Swap(true) {
-		var addr string
-		for _, detail := range p.TransportManager.GetICEConnectionInfo() {
-			for _, candidate := range detail.Remote {
-				if candidate.SelectedOrder != 0 {
-					addr = candidate.Candidate.Address
-				}
-			}
-		}
-		prometheus.RecordSessionStartTime(int(p.ProtocolVersion()), p.params.EnableWarp, p.GetClientInfo().GetSdk(), time.Since(p.params.SessionStartTime), addr)
+		prometheus.RecordSessionStartTime(int(p.ProtocolVersion()), p.params.EnableWarp, p.GetClientInfo().GetSdk(), time.Since(p.params.SessionStartTime), geoip.GetASOrganization(p.params.ClientInfo.Address))
 		prometheus.IncrementParticipantRtcSuccess(1, p.params.EnableWarp, p.GetClientInfo().GetSdk())
 	}
 	p.updateState(livekit.ParticipantInfo_ACTIVE)
@@ -3625,7 +3619,7 @@ func (p *ParticipantImpl) mediaTrackReceived(
 	}
 	p.pendingTracksLock.Unlock()
 
-	_, isReceiverAdded := mt.AddReceiver(rtpReceiver, track, mid)
+	_, isReceiverAdded := mt.AddReceiver(rtpReceiver, track, mid, p.params.ClientInfo.Address)
 
 	if isNewTrack {
 		go func() {

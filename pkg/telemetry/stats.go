@@ -27,7 +27,7 @@ type StatsKey struct {
 	trackSource   livekit.TrackSource
 	trackType     livekit.TrackType
 	track         bool
-	Addr          string
+	ASN           string
 }
 
 func StatsKeyForTrack(
@@ -96,29 +96,29 @@ func (t *telemetryService) TrackStats(roomID livekit.RoomID, _roomName livekit.R
 				bytes += stream.RetransmitBytes
 			}
 			if key.track {
-				prometheus.RecordPacketLoss(key.country, direction, key.trackSource, key.trackType, stream.PacketsLost, stream.PrimaryPackets+stream.PaddingPackets, key.Addr)
-				prometheus.RecordPacketOutOfOrder(key.country, direction, key.trackSource, key.trackType, stream.PacketsOutOfOrder, stream.PrimaryPackets+stream.PaddingPackets, key.Addr)
-				prometheus.RecordRTT(key.country, direction, key.trackSource, key.trackType, stream.Rtt, key.Addr)
-				prometheus.RecordJitter(key.country, direction, key.trackSource, key.trackType, stream.Jitter, key.Addr)
+				prometheus.RecordPacketLoss(key.country, direction, key.trackSource, key.trackType, stream.PacketsLost, stream.PrimaryPackets+stream.PaddingPackets, key.ASN)
+				prometheus.RecordPacketOutOfOrder(key.country, direction, key.trackSource, key.trackType, stream.PacketsOutOfOrder, stream.PrimaryPackets+stream.PaddingPackets, key.ASN)
+				prometheus.RecordRTT(key.country, direction, key.trackSource, key.trackType, stream.Rtt, key.ASN)
+				prometheus.RecordJitter(key.country, direction, key.trackSource, key.trackType, stream.Jitter, key.ASN)
 
 				delta := stream.GetEndTime().AsTime().Sub(stream.GetStartTime().AsTime()).Seconds()
 				if delta != 0 {
 					if bRate := float64(bytes) / delta; uint64(bRate) != 0 {
-						prometheus.IncrementByteRate(direction, key.trackSource, key.trackType, uint64(bRate), key.Addr)
+						prometheus.IncrementByteRate(direction, key.trackSource, key.trackType, uint64(bRate), key.ASN)
 					}
 				}
 			}
 		}
-		prometheus.IncrementRTCP(key.country, direction, nacks, plis, firs, key.Addr)
-		prometheus.IncrementPackets(key.country, direction, uint64(packets), false, key.Addr)
-		prometheus.IncrementBytes(key.country, direction, bytes, false, key.Addr)
-		prometheus.IncrementByteWithAsn(direction, bytes, key.Addr)
+		prometheus.IncrementRTCP(key.country, direction, nacks, plis, firs, key.ASN)
+		prometheus.IncrementPackets(key.country, direction, uint64(packets), false, key.ASN)
+		prometheus.IncrementBytes(key.country, direction, bytes, false, key.ASN)
+		prometheus.IncrementByteWithAsn(direction, bytes, key.ASN)
 		if retransmitPackets != 0 {
-			prometheus.IncrementPackets(key.country, direction, uint64(retransmitPackets), true, key.Addr)
+			prometheus.IncrementPackets(key.country, direction, uint64(retransmitPackets), true, key.ASN)
 		}
 		if retransmitBytes != 0 {
-			prometheus.IncrementBytes(key.country, direction, retransmitBytes, true, key.Addr)
-			prometheus.IncrementByteWithAsn(direction, retransmitBytes, key.Addr)
+			prometheus.IncrementBytes(key.country, direction, retransmitBytes, true, key.ASN)
+			prometheus.IncrementByteWithAsn(direction, retransmitBytes, key.ASN)
 		}
 
 		if worker, ok := t.getWorker(roomID, key.participantID); ok {

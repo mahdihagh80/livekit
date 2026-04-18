@@ -15,7 +15,6 @@
 package prometheus
 
 import (
-	"github.com/livekit/livekit-server/pkg/geoip"
 	"strconv"
 	"time"
 
@@ -396,8 +395,7 @@ func RecordSessionJoinLatency(protocolVersion int, d time.Duration) {
 	promSessionJoinLatency.WithLabelValues(strconv.Itoa(protocolVersion)).Observe(float64(d.Milliseconds()))
 }
 
-func RecordSessionStartTime(protocolVersion int, warp bool, sdk livekit.ClientInfo_SDK, d time.Duration, address string) {
-	asn := geoip.GetASOrganization(address)
+func RecordSessionStartTime(protocolVersion int, warp bool, sdk livekit.ClientInfo_SDK, d time.Duration, asn string) {
 	promSessionStartTime.WithLabelValues(strconv.Itoa(protocolVersion), strconv.FormatBool(warp), sdk.String()).Observe(float64(d.Milliseconds()))
 	promSessionStartTimePerAsn.WithLabelValues(strconv.Itoa(protocolVersion), asn).Observe(float64(d.Milliseconds()))
 }
