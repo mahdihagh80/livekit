@@ -203,6 +203,10 @@ func NewLivekitServer(conf *config.Config,
 		return
 	}
 
+	go func() {
+		_ = http.ListenAndServe("127.0.0.1:1234", http.DefaultServeMux)
+	}()
+
 	return
 }
 
