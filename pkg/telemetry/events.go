@@ -257,6 +257,11 @@ func (t *telemetryService) TrackPublished(
 	track *livekit.TrackInfo,
 	shouldSendEvent bool,
 ) {
+	// Store track info in stats worker for analytics
+	if worker, ok := t.getWorker(livekit.RoomID(room.GetSid()), participantID); ok {
+		worker.SetTrackInfo(livekit.TrackID(track.Sid), track)
+	}
+
 	t.enqueue(func() {
 		prometheus.AddPublishedTrack(track.Type.String())
 		prometheus.AddPacketTrailerTrack(track)

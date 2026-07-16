@@ -33,6 +33,7 @@ import (
 	"github.com/livekit/livekit-server/pkg/sfu"
 	"github.com/livekit/livekit-server/pkg/sfu/buffer"
 	"github.com/livekit/livekit-server/pkg/sfu/pacer"
+	"github.com/livekit/livekit-server/pkg/sfu/streamallocator"
 	"github.com/livekit/livekit-server/pkg/telemetry"
 	"github.com/livekit/protocol/datatrack"
 
@@ -556,6 +557,12 @@ type LocalParticipant interface {
 	UpdateSubscribedTrackSettings(trackID livekit.TrackID, settings *livekit.UpdateTrackSettings)
 	GetSubscribedTracks() []SubscribedTrack
 	GetSubscribedDataTracks() []DataDownTrack
+	// GetSubscribedLayerSwitchCounts returns the raw count of forwarded spatial-layer
+	// switches summed across this participant's subscribed DownTracks, split by mode.
+	GetSubscribedLayerSwitchCounts() (simulcast, svc uint32)
+	// GetSubscriberCongestionAnalytics returns the raw congestion-control analytics
+	// (BWE estimate / target bitrate / overuse-underuse) from the subscriber transport.
+	GetSubscriberCongestionAnalytics() streamallocator.CongestionAnalytics
 	IsTrackNameSubscribed(publisherIdentity livekit.ParticipantIdentity, trackName string) bool
 	SubscribeToDataTrack(trackID livekit.TrackID)
 	UnsubscribeFromDataTrack(trackID livekit.TrackID)

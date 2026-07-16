@@ -15,6 +15,8 @@
 package telemetry
 
 import (
+	"time"
+
 	"github.com/livekit/livekit-server/pkg/telemetry/prometheus"
 	"github.com/livekit/protocol/livekit"
 )
@@ -125,4 +127,12 @@ func (t *telemetryService) TrackStats(roomID livekit.RoomID, _roomName livekit.R
 			worker.OnTrackStat(key.trackID, key.streamType, stat)
 		}
 	})
+}
+
+func (t *telemetryService) BuildParticipantAnalytics(roomID livekit.RoomID, participantID livekit.ParticipantID, join, leave time.Time) *ParticipantAnalytics {
+	worker, ok := t.getWorker(roomID, participantID)
+	if !ok {
+		return nil
+	}
+	return worker.BuildAnalytics(join, leave)
 }

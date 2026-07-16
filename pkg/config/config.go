@@ -85,25 +85,26 @@ type Config struct {
 	Port          uint32   `yaml:"port,omitempty"`
 	BindAddresses []string `yaml:"bind_addresses,omitempty"`
 	// PrometheusPort is deprecated
-	PrometheusPort uint32                   `yaml:"prometheus_port,omitempty"`
-	Prometheus     PrometheusConfig         `yaml:"prometheus,omitempty"`
-	DebugHandler   DebugHandlerConfig       `yaml:"debug_handler,omitempty"`
-	WebTransport   WebTransportConfig       `yaml:"webtransport,omitempty"`
-	RTC            RTCConfig                `yaml:"rtc,omitempty"`
-	Redis          redisLiveKit.RedisConfig `yaml:"redis,omitempty"`
-	Audio          sfu.AudioConfig          `yaml:"audio,omitempty"`
-	Video          VideoConfig              `yaml:"video,omitempty"`
-	Room           RoomConfig               `yaml:"room,omitempty"`
-	TURN           TURNConfig               `yaml:"turn,omitempty"`
-	Ingress        IngressConfig            `yaml:"ingress,omitempty"`
-	SIP            SIPConfig                `yaml:"sip,omitempty"`
-	WebHook        webhook.WebHookConfig    `yaml:"webhook,omitempty"`
-	NodeSelector   NodeSelectorConfig       `yaml:"node_selector,omitempty"`
-	KeyFile        string                   `yaml:"key_file,omitempty"`
-	Keys           map[string]string        `yaml:"keys,omitempty"`
-	Region         string                   `yaml:"region,omitempty"`
-	SignalRelay    SignalRelayConfig        `yaml:"signal_relay,omitempty"`
-	PSRPC          rpc.PSRPCConfig          `yaml:"psrpc,omitempty"`
+	PrometheusPort          uint32                   `yaml:"prometheus_port,omitempty"`
+	Prometheus              PrometheusConfig         `yaml:"prometheus,omitempty"`
+	DebugHandler            DebugHandlerConfig       `yaml:"debug_handler,omitempty"`
+	WebTransport            WebTransportConfig       `yaml:"webtransport,omitempty"`
+	RTC                     RTCConfig                `yaml:"rtc,omitempty"`
+	Redis                   redisLiveKit.RedisConfig `yaml:"redis,omitempty"`
+	Audio                   sfu.AudioConfig          `yaml:"audio,omitempty"`
+	Video                   VideoConfig              `yaml:"video,omitempty"`
+	Room                    RoomConfig               `yaml:"room,omitempty"`
+	TURN                    TURNConfig               `yaml:"turn,omitempty"`
+	Ingress                 IngressConfig            `yaml:"ingress,omitempty"`
+	SIP                     SIPConfig                `yaml:"sip,omitempty"`
+	WebHook                 webhook.WebHookConfig    `yaml:"webhook,omitempty"`
+	ParticipantAnalyticsURL string                   `yaml:"participant_analytics_url,omitempty"`
+	NodeSelector            NodeSelectorConfig       `yaml:"node_selector,omitempty"`
+	KeyFile                 string                   `yaml:"key_file,omitempty"`
+	Keys                    map[string]string        `yaml:"keys,omitempty"`
+	Region                  string                   `yaml:"region,omitempty"`
+	SignalRelay             SignalRelayConfig        `yaml:"signal_relay,omitempty"`
+	PSRPC                   rpc.PSRPCConfig          `yaml:"psrpc,omitempty"`
 	// Deprecated: LogLevel is deprecated
 	LogLevel string        `yaml:"log_level,omitempty"`
 	Logging  LoggingConfig `yaml:"logging,omitempty"`

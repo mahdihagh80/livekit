@@ -635,6 +635,16 @@ func NewPCTransport(params TransportParams) (*PCTransport, error) {
 	return t, nil
 }
 
+// GetCongestionAnalytics returns the raw per-session congestion-control analytics from
+// this transport's stream allocator (zero value when there is no allocator, e.g. the
+// publisher transport or when congestion control is disabled).
+func (t *PCTransport) GetCongestionAnalytics() streamallocator.CongestionAnalytics {
+	if t.streamAllocator == nil {
+		return streamallocator.CongestionAnalytics{}
+	}
+	return t.streamAllocator.GetCongestionAnalytics()
+}
+
 func (t *PCTransport) createPeerConnection() (cc.BandwidthEstimator, error) {
 	var bwe cc.BandwidthEstimator
 	pc, me, rtxInfoExtractorFactory, err := newPeerConnection(t.params, func(estimator cc.BandwidthEstimator) {

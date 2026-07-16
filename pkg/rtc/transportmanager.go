@@ -41,6 +41,7 @@ import (
 	"github.com/livekit/livekit-server/pkg/sfu/datachannel"
 	"github.com/livekit/livekit-server/pkg/sfu/interceptor"
 	"github.com/livekit/livekit-server/pkg/sfu/pacer"
+	"github.com/livekit/livekit-server/pkg/sfu/streamallocator"
 )
 
 const (
@@ -287,6 +288,13 @@ func (t *TransportManager) HasSubscriberICEEverConnected() bool {
 	} else {
 		return t.subscriber.ICEHasEverConnected()
 	}
+}
+
+func (t *TransportManager) GetSubscriberCongestionAnalytics() streamallocator.CongestionAnalytics {
+	if t.params.UseOneShotSignallingMode || t.params.UseSinglePeerConnection {
+		return t.publisher.GetCongestionAnalytics()
+	}
+	return t.subscriber.GetCongestionAnalytics()
 }
 
 func (t *TransportManager) HasSubscriberEverConnected() bool {

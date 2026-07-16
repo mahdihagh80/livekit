@@ -33,6 +33,11 @@ type TelemetryService interface {
 	// TrackStats is called periodically for each track in both directions (published/subscribed)
 	TrackStats(roomID livekit.RoomID, roomName livekit.RoomName, key StatsKey, stat *livekit.AnalyticsStat)
 
+	// BuildParticipantAnalytics renders the accumulated raw analytics for a participant
+	// session. Returns nil when no data was collected or the worker is gone. Intended to
+	// be called at participant disconnect, before ParticipantLeft.
+	BuildParticipantAnalytics(roomID livekit.RoomID, participantID livekit.ParticipantID, join, leave time.Time) *ParticipantAnalytics
+
 	// events
 	RoomStarted(ctx context.Context, room *livekit.Room)
 	RoomEnded(ctx context.Context, room *livekit.Room, reason livekit.RoomEndReason)
@@ -105,6 +110,10 @@ type NullTelemetryService struct {
 }
 
 func (n NullTelemetryService) TrackStats(roomID livekit.RoomID, roomName livekit.RoomName, key StatsKey, stat *livekit.AnalyticsStat) {
+}
+
+func (n NullTelemetryService) BuildParticipantAnalytics(roomID livekit.RoomID, participantID livekit.ParticipantID, join, leave time.Time) *ParticipantAnalytics {
+	return nil
 }
 func (n NullTelemetryService) RoomStarted(ctx context.Context, room *livekit.Room) {}
 func (n NullTelemetryService) RoomEnded(ctx context.Context, room *livekit.Room, reason livekit.RoomEndReason) {

@@ -274,6 +274,12 @@ type Forwarder struct {
 	refVideoLayerMode        livekit.VideoLayer_Mode
 	isDDAvailable            bool
 
+	// raw count of forwarded spatial-layer switches over the session, split by mode
+	// (simulcast = one spatial layer per stream, svc = multiple spatial layers per
+	// stream). Temporal-only changes are not counted. Guarded by lock.
+	simulcastLayerSwitches uint32
+	svcLayerSwitches       uint32
+
 	provisional *VideoAllocationProvisional
 
 	lastAllocation VideoAllocation
@@ -1774,12 +1780,30 @@ func (f *Forwarder) updateAllocation(alloc VideoAllocation, reason string) Video
 }
 
 func (f *Forwarder) setTargetLayer(targetLayer buffer.VideoLayer, requestLayerSpatial int32) {
+	prevTarget := f.vls.GetTarget()
 	f.vls.SetTarget(targetLayer)
+	// count an actual forwarded spatial-layer switch (both target layers valid and the
+	// spatial layer differs). caller holds f.lock.
+	if targetLayer.IsValid() && prevTarget.IsValid() && targetLayer.Spatial != prevTarget.Spatial {
+		if f.refVideoLayerMode == livekit.VideoLayer_MULTIPLE_SPATIAL_LAYERS_PER_STREAM {
+			f.svcLayerSwitches++
+		} else {
+			f.simulcastLayerSwitches++
+		}
+	}
 	if targetLayer.IsValid() {
 		f.vls.SetRequestSpatial(requestLayerSpatial)
 	} else {
 		f.vls.SetRequestSpatial(buffer.InvalidLayerSpatial)
 	}
+}
+
+// LayerSwitches returns the raw count of forwarded spatial-layer switches observed
+// over the lifetime of the forwarder, split by simulcast vs SVC.
+func (f *Forwarder) LayerSwitches() (simulcast, svc uint32) {
+	f.lock.RLock()
+	defer f.lock.RUnlock()
+	return f.simulcastLayerSwitches, f.svcLayerSwitches
 }
 
 func (f *Forwarder) Resync() {

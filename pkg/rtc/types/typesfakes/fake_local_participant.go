@@ -10,6 +10,7 @@ import (
 	"github.com/livekit/livekit-server/pkg/sfu"
 	"github.com/livekit/livekit-server/pkg/sfu/buffer"
 	"github.com/livekit/livekit-server/pkg/sfu/pacer"
+	"github.com/livekit/livekit-server/pkg/sfu/streamallocator"
 	"github.com/livekit/livekit-server/pkg/telemetry"
 	"github.com/livekit/protocol/auth"
 	"github.com/livekit/protocol/datatrack"
@@ -587,6 +588,18 @@ type FakeLocalParticipant struct {
 	getSubscribedDataTracksReturnsOnCall map[int]struct {
 		result1 []types.DataDownTrack
 	}
+	GetSubscribedLayerSwitchCountsStub        func() (uint32, uint32)
+	getSubscribedLayerSwitchCountsMutex       sync.RWMutex
+	getSubscribedLayerSwitchCountsArgsForCall []struct {
+	}
+	getSubscribedLayerSwitchCountsReturns struct {
+		result1 uint32
+		result2 uint32
+	}
+	getSubscribedLayerSwitchCountsReturnsOnCall map[int]struct {
+		result1 uint32
+		result2 uint32
+	}
 	GetSubscribedParticipantsStub        func() []livekit.ParticipantID
 	getSubscribedParticipantsMutex       sync.RWMutex
 	getSubscribedParticipantsArgsForCall []struct {
@@ -606,6 +619,16 @@ type FakeLocalParticipant struct {
 	}
 	getSubscribedTracksReturnsOnCall map[int]struct {
 		result1 []types.SubscribedTrack
+	}
+	GetSubscriberCongestionAnalyticsStub        func() streamallocator.CongestionAnalytics
+	getSubscriberCongestionAnalyticsMutex       sync.RWMutex
+	getSubscriberCongestionAnalyticsArgsForCall []struct {
+	}
+	getSubscriberCongestionAnalyticsReturns struct {
+		result1 streamallocator.CongestionAnalytics
+	}
+	getSubscriberCongestionAnalyticsReturnsOnCall map[int]struct {
+		result1 streamallocator.CongestionAnalytics
 	}
 	GetTelemetryListenerStub        func() types.ParticipantTelemetryListener
 	getTelemetryListenerMutex       sync.RWMutex
@@ -4612,6 +4635,62 @@ func (fake *FakeLocalParticipant) GetSubscribedDataTracksReturnsOnCall(i int, re
 	}{result1}
 }
 
+func (fake *FakeLocalParticipant) GetSubscribedLayerSwitchCounts() (uint32, uint32) {
+	fake.getSubscribedLayerSwitchCountsMutex.Lock()
+	ret, specificReturn := fake.getSubscribedLayerSwitchCountsReturnsOnCall[len(fake.getSubscribedLayerSwitchCountsArgsForCall)]
+	fake.getSubscribedLayerSwitchCountsArgsForCall = append(fake.getSubscribedLayerSwitchCountsArgsForCall, struct {
+	}{})
+	stub := fake.GetSubscribedLayerSwitchCountsStub
+	fakeReturns := fake.getSubscribedLayerSwitchCountsReturns
+	fake.recordInvocation("GetSubscribedLayerSwitchCounts", []interface{}{})
+	fake.getSubscribedLayerSwitchCountsMutex.Unlock()
+	if stub != nil {
+		return stub()
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeLocalParticipant) GetSubscribedLayerSwitchCountsCallCount() int {
+	fake.getSubscribedLayerSwitchCountsMutex.RLock()
+	defer fake.getSubscribedLayerSwitchCountsMutex.RUnlock()
+	return len(fake.getSubscribedLayerSwitchCountsArgsForCall)
+}
+
+func (fake *FakeLocalParticipant) GetSubscribedLayerSwitchCountsCalls(stub func() (uint32, uint32)) {
+	fake.getSubscribedLayerSwitchCountsMutex.Lock()
+	defer fake.getSubscribedLayerSwitchCountsMutex.Unlock()
+	fake.GetSubscribedLayerSwitchCountsStub = stub
+}
+
+func (fake *FakeLocalParticipant) GetSubscribedLayerSwitchCountsReturns(result1 uint32, result2 uint32) {
+	fake.getSubscribedLayerSwitchCountsMutex.Lock()
+	defer fake.getSubscribedLayerSwitchCountsMutex.Unlock()
+	fake.GetSubscribedLayerSwitchCountsStub = nil
+	fake.getSubscribedLayerSwitchCountsReturns = struct {
+		result1 uint32
+		result2 uint32
+	}{result1, result2}
+}
+
+func (fake *FakeLocalParticipant) GetSubscribedLayerSwitchCountsReturnsOnCall(i int, result1 uint32, result2 uint32) {
+	fake.getSubscribedLayerSwitchCountsMutex.Lock()
+	defer fake.getSubscribedLayerSwitchCountsMutex.Unlock()
+	fake.GetSubscribedLayerSwitchCountsStub = nil
+	if fake.getSubscribedLayerSwitchCountsReturnsOnCall == nil {
+		fake.getSubscribedLayerSwitchCountsReturnsOnCall = make(map[int]struct {
+			result1 uint32
+			result2 uint32
+		})
+	}
+	fake.getSubscribedLayerSwitchCountsReturnsOnCall[i] = struct {
+		result1 uint32
+		result2 uint32
+	}{result1, result2}
+}
+
 func (fake *FakeLocalParticipant) GetSubscribedParticipants() []livekit.ParticipantID {
 	fake.getSubscribedParticipantsMutex.Lock()
 	ret, specificReturn := fake.getSubscribedParticipantsReturnsOnCall[len(fake.getSubscribedParticipantsArgsForCall)]
@@ -4715,6 +4794,59 @@ func (fake *FakeLocalParticipant) GetSubscribedTracksReturnsOnCall(i int, result
 	}
 	fake.getSubscribedTracksReturnsOnCall[i] = struct {
 		result1 []types.SubscribedTrack
+	}{result1}
+}
+
+func (fake *FakeLocalParticipant) GetSubscriberCongestionAnalytics() streamallocator.CongestionAnalytics {
+	fake.getSubscriberCongestionAnalyticsMutex.Lock()
+	ret, specificReturn := fake.getSubscriberCongestionAnalyticsReturnsOnCall[len(fake.getSubscriberCongestionAnalyticsArgsForCall)]
+	fake.getSubscriberCongestionAnalyticsArgsForCall = append(fake.getSubscriberCongestionAnalyticsArgsForCall, struct {
+	}{})
+	stub := fake.GetSubscriberCongestionAnalyticsStub
+	fakeReturns := fake.getSubscriberCongestionAnalyticsReturns
+	fake.recordInvocation("GetSubscriberCongestionAnalytics", []interface{}{})
+	fake.getSubscriberCongestionAnalyticsMutex.Unlock()
+	if stub != nil {
+		return stub()
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeLocalParticipant) GetSubscriberCongestionAnalyticsCallCount() int {
+	fake.getSubscriberCongestionAnalyticsMutex.RLock()
+	defer fake.getSubscriberCongestionAnalyticsMutex.RUnlock()
+	return len(fake.getSubscriberCongestionAnalyticsArgsForCall)
+}
+
+func (fake *FakeLocalParticipant) GetSubscriberCongestionAnalyticsCalls(stub func() streamallocator.CongestionAnalytics) {
+	fake.getSubscriberCongestionAnalyticsMutex.Lock()
+	defer fake.getSubscriberCongestionAnalyticsMutex.Unlock()
+	fake.GetSubscriberCongestionAnalyticsStub = stub
+}
+
+func (fake *FakeLocalParticipant) GetSubscriberCongestionAnalyticsReturns(result1 streamallocator.CongestionAnalytics) {
+	fake.getSubscriberCongestionAnalyticsMutex.Lock()
+	defer fake.getSubscriberCongestionAnalyticsMutex.Unlock()
+	fake.GetSubscriberCongestionAnalyticsStub = nil
+	fake.getSubscriberCongestionAnalyticsReturns = struct {
+		result1 streamallocator.CongestionAnalytics
+	}{result1}
+}
+
+func (fake *FakeLocalParticipant) GetSubscriberCongestionAnalyticsReturnsOnCall(i int, result1 streamallocator.CongestionAnalytics) {
+	fake.getSubscriberCongestionAnalyticsMutex.Lock()
+	defer fake.getSubscriberCongestionAnalyticsMutex.Unlock()
+	fake.GetSubscriberCongestionAnalyticsStub = nil
+	if fake.getSubscriberCongestionAnalyticsReturnsOnCall == nil {
+		fake.getSubscriberCongestionAnalyticsReturnsOnCall = make(map[int]struct {
+			result1 streamallocator.CongestionAnalytics
+		})
+	}
+	fake.getSubscriberCongestionAnalyticsReturnsOnCall[i] = struct {
+		result1 streamallocator.CongestionAnalytics
 	}{result1}
 }
 

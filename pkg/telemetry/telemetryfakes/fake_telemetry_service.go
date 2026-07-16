@@ -4,6 +4,7 @@ package telemetryfakes
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/livekit/livekit-server/pkg/telemetry"
 	"github.com/livekit/protocol/codecs/mime"
@@ -17,6 +18,20 @@ type FakeTelemetryService struct {
 	aPICallArgsForCall []struct {
 		arg1 context.Context
 		arg2 *livekit.APICallInfo
+	}
+	BuildParticipantAnalyticsStub        func(livekit.RoomID, livekit.ParticipantID, time.Time, time.Time) *telemetry.ParticipantAnalytics
+	buildParticipantAnalyticsMutex       sync.RWMutex
+	buildParticipantAnalyticsArgsForCall []struct {
+		arg1 livekit.RoomID
+		arg2 livekit.ParticipantID
+		arg3 time.Time
+		arg4 time.Time
+	}
+	buildParticipantAnalyticsReturns struct {
+		result1 *telemetry.ParticipantAnalytics
+	}
+	buildParticipantAnalyticsReturnsOnCall map[int]struct {
+		result1 *telemetry.ParticipantAnalytics
 	}
 	EgressEndedStub        func(context.Context, *livekit.EgressInfo)
 	egressEndedMutex       sync.RWMutex
@@ -347,6 +362,70 @@ func (fake *FakeTelemetryService) APICallArgsForCall(i int) (context.Context, *l
 	defer fake.aPICallMutex.RUnlock()
 	argsForCall := fake.aPICallArgsForCall[i]
 	return argsForCall.arg1, argsForCall.arg2
+}
+
+func (fake *FakeTelemetryService) BuildParticipantAnalytics(arg1 livekit.RoomID, arg2 livekit.ParticipantID, arg3 time.Time, arg4 time.Time) *telemetry.ParticipantAnalytics {
+	fake.buildParticipantAnalyticsMutex.Lock()
+	ret, specificReturn := fake.buildParticipantAnalyticsReturnsOnCall[len(fake.buildParticipantAnalyticsArgsForCall)]
+	fake.buildParticipantAnalyticsArgsForCall = append(fake.buildParticipantAnalyticsArgsForCall, struct {
+		arg1 livekit.RoomID
+		arg2 livekit.ParticipantID
+		arg3 time.Time
+		arg4 time.Time
+	}{arg1, arg2, arg3, arg4})
+	stub := fake.BuildParticipantAnalyticsStub
+	fakeReturns := fake.buildParticipantAnalyticsReturns
+	fake.recordInvocation("BuildParticipantAnalytics", []interface{}{arg1, arg2, arg3, arg4})
+	fake.buildParticipantAnalyticsMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2, arg3, arg4)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeTelemetryService) BuildParticipantAnalyticsCallCount() int {
+	fake.buildParticipantAnalyticsMutex.RLock()
+	defer fake.buildParticipantAnalyticsMutex.RUnlock()
+	return len(fake.buildParticipantAnalyticsArgsForCall)
+}
+
+func (fake *FakeTelemetryService) BuildParticipantAnalyticsCalls(stub func(livekit.RoomID, livekit.ParticipantID, time.Time, time.Time) *telemetry.ParticipantAnalytics) {
+	fake.buildParticipantAnalyticsMutex.Lock()
+	defer fake.buildParticipantAnalyticsMutex.Unlock()
+	fake.BuildParticipantAnalyticsStub = stub
+}
+
+func (fake *FakeTelemetryService) BuildParticipantAnalyticsArgsForCall(i int) (livekit.RoomID, livekit.ParticipantID, time.Time, time.Time) {
+	fake.buildParticipantAnalyticsMutex.RLock()
+	defer fake.buildParticipantAnalyticsMutex.RUnlock()
+	argsForCall := fake.buildParticipantAnalyticsArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
+}
+
+func (fake *FakeTelemetryService) BuildParticipantAnalyticsReturns(result1 *telemetry.ParticipantAnalytics) {
+	fake.buildParticipantAnalyticsMutex.Lock()
+	defer fake.buildParticipantAnalyticsMutex.Unlock()
+	fake.BuildParticipantAnalyticsStub = nil
+	fake.buildParticipantAnalyticsReturns = struct {
+		result1 *telemetry.ParticipantAnalytics
+	}{result1}
+}
+
+func (fake *FakeTelemetryService) BuildParticipantAnalyticsReturnsOnCall(i int, result1 *telemetry.ParticipantAnalytics) {
+	fake.buildParticipantAnalyticsMutex.Lock()
+	defer fake.buildParticipantAnalyticsMutex.Unlock()
+	fake.BuildParticipantAnalyticsStub = nil
+	if fake.buildParticipantAnalyticsReturnsOnCall == nil {
+		fake.buildParticipantAnalyticsReturnsOnCall = make(map[int]struct {
+			result1 *telemetry.ParticipantAnalytics
+		})
+	}
+	fake.buildParticipantAnalyticsReturnsOnCall[i] = struct {
+		result1 *telemetry.ParticipantAnalytics
+	}{result1}
 }
 
 func (fake *FakeTelemetryService) EgressEnded(arg1 context.Context, arg2 *livekit.EgressInfo) {

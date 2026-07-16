@@ -667,6 +667,17 @@ func (p *ParticipantImpl) ConnectedAt() time.Time {
 	return p.connectedAt
 }
 
+func (p *ParticipantImpl) GetSubscribedLayerSwitchCounts() (simulcast, svc uint32) {
+	for _, st := range p.SubscriptionManager.GetSubscribedTracks() {
+		if dt := st.DownTrack(); dt != nil {
+			s, v := dt.LayerSwitchCounts()
+			simulcast += s
+			svc += v
+		}
+	}
+	return
+}
+
 func (p *ParticipantImpl) ActiveAt() time.Time {
 	if activeAt := p.lastActiveAt.Load(); activeAt != nil {
 		return *activeAt

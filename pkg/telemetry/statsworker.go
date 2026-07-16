@@ -86,6 +86,7 @@ type StatsWorker struct {
 	lock             sync.RWMutex
 	outgoingPerTrack map[livekit.TrackID][]*livekit.AnalyticsStat
 	incomingPerTrack map[livekit.TrackID][]*livekit.AnalyticsStat
+	agg              *sessionAnalytics
 	refCount         ReferenceCount
 	closedAt         time.Time
 }
@@ -108,6 +109,7 @@ func newStatsWorker(
 		participantIdentity: identity,
 		outgoingPerTrack:    make(map[livekit.TrackID][]*livekit.AnalyticsStat),
 		incomingPerTrack:    make(map[livekit.TrackID][]*livekit.AnalyticsStat),
+		agg:                 &sessionAnalytics{},
 	}
 	s.refCount.Activate(guard)
 	return s
@@ -120,7 +122,31 @@ func (s *StatsWorker) OnTrackStat(trackID livekit.TrackID, direction livekit.Str
 	} else {
 		s.incomingPerTrack[trackID] = append(s.incomingPerTrack[trackID], stat)
 	}
+	// fold into the session-lifetime aggregate (reuses the existing per-track
+	// AnalyticsStat stream; no extra sampling on the media path).
+	s.agg.foldTrackStat(trackID, direction, stat)
 	s.lock.Unlock()
+}
+
+// SetTrackInfo stores track info for analytics. Should be called when a track is published.
+func (s *StatsWorker) SetTrackInfo(trackID livekit.TrackID, info *livekit.TrackInfo) {
+	s.lock.Lock()
+	s.agg.SetTrackInfo(trackID, info)
+	s.lock.Unlock()
+}
+
+// BuildAnalytics renders the accumulated session aggregate. Returns nil when no
+// media/transport data was ever collected (e.g. a participant that never connected).
+// Codec metadata and layer-switch counts are filled in by the caller from the
+// participant (they originate outside the telemetry stats stream).
+func (s *StatsWorker) BuildAnalytics(join, leave time.Time) *ParticipantAnalytics {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+
+	if !s.agg.hasData() {
+		return nil
+	}
+	return s.agg.build(string(s.participantID), string(s.participantIdentity), string(s.roomName), join, leave)
 }
 
 func (s *StatsWorker) ParticipantID() livekit.ParticipantID {

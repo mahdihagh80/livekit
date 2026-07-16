@@ -3,11 +3,12 @@ package telemetry
 import (
 	"context"
 	"testing"
-
-	"github.com/stretchr/testify/require"
-	"go.uber.org/zap/zapcore"
+	"time"
 
 	"github.com/livekit/protocol/livekit"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/zap/zapcore"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestStatsWorker(t *testing.T) {
@@ -55,4 +56,59 @@ func TestGetOrCreateWorkerReleasedGuard(t *testing.T) {
 		require.Empty(t, ts.workers)
 		late.SetConnected()
 	})
+}
+
+func newTestStatsWorker() *StatsWorker {
+	return newStatsWorker(
+		context.Background(),
+		&NullTelemetryService{},
+		"room-id",
+		"room-name",
+		"participant-id",
+		"identity",
+		nil,
+	)
+}
+
+func TestStatsWorker_BuildAnalytics(t *testing.T) {
+	w := newTestStatsWorker()
+	t0 := time.Unix(1000, 0)
+
+	w.OnTrackStat("track-a", livekit.StreamType_UPSTREAM, &livekit.AnalyticsStat{
+		Mime: "audio/opus",
+		Streams: []*livekit.AnalyticsStream{{
+			StartTime:      timestamppb.New(t0),
+			EndTime:        timestamppb.New(t0.Add(time.Second)),
+			PrimaryPackets: 50,
+			PrimaryBytes:   8000,
+			PacketsLost:    1,
+		}},
+	})
+	w.OnTrackStat("track-v", livekit.StreamType_DOWNSTREAM, &livekit.AnalyticsStat{
+		Mime: "video/vp8",
+		Streams: []*livekit.AnalyticsStream{{
+			StartTime:    timestamppb.New(t0),
+			EndTime:      timestamppb.New(t0.Add(time.Second)),
+			PrimaryBytes: 40000,
+		}},
+	})
+
+	pa := w.BuildAnalytics(t0, t0.Add(5*time.Second))
+	require.NotNil(t, pa)
+	require.Equal(t, "participant-id", pa.ParticipantID)
+	require.Equal(t, "identity", pa.ParticipantIdentity)
+	require.NotNil(t, pa.Upstream)
+	require.NotNil(t, pa.Upstream.Audio)
+	require.EqualValues(t, 50, pa.Upstream.Audio.PrimaryPackets)
+	require.EqualValues(t, 1, pa.Upstream.Audio.PacketsLost)
+	require.NotNil(t, pa.Downstream)
+	require.NotNil(t, pa.Downstream.Video)
+	require.EqualValues(t, 40000, pa.Downstream.Video.PrimaryBytes)
+	require.EqualValues(t, 1, pa.Downstream.VideoTracksForwarded)
+	require.Equal(t, 5.0, pa.ParticipationDurationSeconds)
+}
+
+func TestStatsWorker_BuildAnalytics_NoData(t *testing.T) {
+	w := newTestStatsWorker()
+	require.Nil(t, w.BuildAnalytics(time.Now(), time.Now()))
 }

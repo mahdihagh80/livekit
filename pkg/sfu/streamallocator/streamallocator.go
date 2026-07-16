@@ -234,6 +234,15 @@ type StreamAllocator struct {
 	committedChannelCapacity  int64
 	overriddenChannelCapacity int64
 
+	// raw congestion-control analytics, accumulated on the event-worker goroutine and
+	// read once at participant disconnect. analyticsLock only guards against the
+	// close-time reader; the writers are already serialized on the worker goroutine.
+	analyticsLock      sync.Mutex
+	bweEstimateAcc     mmAccum
+	targetBitrateAcc   mmAccum
+	overuseEventCount  uint32
+	underuseEventCount uint32
+
 	prober *ccutils.Prober
 
 	videoTracksMu        sync.RWMutex
@@ -702,6 +711,9 @@ func (s *StreamAllocator) handleSignalAdjustState(Event) {
 }
 
 func (s *StreamAllocator) handleSignalEstimate(event Event) {
+	// record the target/available channel-capacity estimate for analytics
+	s.recordTargetBitrate(event.channelCapacity)
+
 	// always update NACKs
 	packetDelta, repeatedNackDelta := s.getNackDelta()
 
@@ -723,6 +735,9 @@ func (s *StreamAllocator) handleSignalFeedback(event Event) {
 }
 
 func (s *StreamAllocator) handleSignalPeriodicPing(Event) {
+	// sample the current committed channel capacity (BWE estimate) at the ping cadence
+	s.recordBWEEstimate(s.committedChannelCapacity)
+
 	// if pause is allowed, there may be no packets sent and BWE could be in congested state,
 	// reset BWE if that persists for a while
 	if s.allowPause && s.state == streamAllocatorStateDeficient && s.params.BWE.CongestionState() != bwe.CongestionStateNone && s.params.Pacer.TimeSinceLastSentPacket() > s.params.Config.PausedMinWait {
@@ -855,6 +870,12 @@ func (s *StreamAllocator) handleSignalSetChannelCapacity(event Event) {
 
 func (s *StreamAllocator) handleSignalCongestionStateChange(event Event) {
 	cscd := event.congestionStateChangeData
+
+	// analytics: record the estimate at the transition and classify the transition as
+	// moving toward (overuse) or away from (underuse) congestion.
+	s.recordBWEEstimate(cscd.estimatedAvailableChannelCapacity)
+	s.recordCongestionTransition(cscd.fromState, cscd.toState)
+
 	if cscd.toState != bwe.CongestionStateNone {
 		// end/abort any running probe if channel is not clear
 		s.maybeStopProbe()
@@ -1472,3 +1493,97 @@ func isDeficientCongestionState(bweCongestionState bwe.CongestionState) bool {
 }
 
 // ------------------------------------------------
+
+// ------------------------------------------------
+
+// mmAccum is a minimal min/avg/max accumulator for raw congestion-control analytics.
+type mmAccum struct {
+	sum  float64
+	n    uint64
+	minV float64
+	maxV float64
+}
+
+func (m *mmAccum) add(v float64) {
+	if m.n == 0 {
+		m.minV = v
+		m.maxV = v
+	} else {
+		if v < m.minV {
+			m.minV = v
+		}
+		if v > m.maxV {
+			m.maxV = v
+		}
+	}
+	m.sum += v
+	m.n++
+}
+
+func (m *mmAccum) avg() float64 {
+	if m.n == 0 {
+		return 0
+	}
+	return m.sum / float64(m.n)
+}
+
+// CongestionAnalytics is the raw per-session congestion-control summary read at
+// participant disconnect. For send-side BWE the bwe estimate doubles as the available
+// outgoing bitrate / subscriber bandwidth estimate (they are the same value).
+type CongestionAnalytics struct {
+	BweEstimateAvgBps   uint64
+	BweEstimateMinBps   uint64
+	BweEstimateMaxBps   uint64
+	TargetBitrateAvgBps uint64
+	TargetBitrateMinBps uint64
+	TargetBitrateMaxBps uint64
+	OveruseEventCount   uint32
+	UnderuseEventCount  uint32
+}
+
+func (s *StreamAllocator) recordBWEEstimate(estimateBps int64) {
+	if estimateBps <= 0 {
+		return
+	}
+	s.analyticsLock.Lock()
+	s.bweEstimateAcc.add(float64(estimateBps))
+	s.analyticsLock.Unlock()
+}
+
+func (s *StreamAllocator) recordTargetBitrate(bitrateBps int64) {
+	if bitrateBps <= 0 {
+		return
+	}
+	s.analyticsLock.Lock()
+	s.targetBitrateAcc.add(float64(bitrateBps))
+	s.analyticsLock.Unlock()
+}
+
+func (s *StreamAllocator) recordCongestionTransition(fromState, toState bwe.CongestionState) {
+	if toState == fromState {
+		return
+	}
+	s.analyticsLock.Lock()
+	if toState > fromState {
+		s.overuseEventCount++
+	} else {
+		s.underuseEventCount++
+	}
+	s.analyticsLock.Unlock()
+}
+
+// GetCongestionAnalytics returns the accumulated raw congestion-control analytics.
+func (s *StreamAllocator) GetCongestionAnalytics() CongestionAnalytics {
+	s.analyticsLock.Lock()
+	defer s.analyticsLock.Unlock()
+	return CongestionAnalytics{
+		BweEstimateAvgBps:   uint64(s.bweEstimateAcc.avg()),
+		BweEstimateMinBps:   uint64(s.bweEstimateAcc.minV),
+		BweEstimateMaxBps:   uint64(s.bweEstimateAcc.maxV),
+		TargetBitrateAvgBps: uint64(s.targetBitrateAcc.avg()),
+		TargetBitrateMinBps: uint64(s.targetBitrateAcc.minV),
+		TargetBitrateMaxBps: uint64(s.targetBitrateAcc.maxV),
+		OveruseEventCount:   s.overuseEventCount,
+		UnderuseEventCount:  s.underuseEventCount,
+	}
+}

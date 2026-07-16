@@ -778,6 +778,15 @@ func (d *DownTrack) Mime() mime.MimeType {
 	return mime.NormalizeMimeType(d.codec.Load().(webrtc.RTPCodecCapability).MimeType)
 }
 
+// LayerSwitchCounts returns the raw count of forwarded spatial-layer switches for this
+// DownTrack over its lifetime, split by simulcast vs SVC. Audio tracks report zero.
+func (d *DownTrack) LayerSwitchCounts() (simulcast, svc uint32) {
+	if d.kind == webrtc.RTPCodecTypeAudio {
+		return 0, 0
+	}
+	return d.forwarder.LayerSwitches()
+}
+
 // StreamID is the group this track belongs too. This must be unique
 func (d *DownTrack) StreamID() string { return d.params.StreamID }
 

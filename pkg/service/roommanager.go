@@ -46,6 +46,7 @@ import (
 	"github.com/livekit/psrpc/pkg/middleware"
 
 	"github.com/livekit/livekit-server/pkg/agent"
+	"github.com/livekit/livekit-server/pkg/geoip"
 	"github.com/livekit/livekit-server/pkg/sfu"
 	sutils "github.com/livekit/livekit-server/pkg/utils"
 
@@ -84,6 +85,7 @@ type RoomManager struct {
 	whipServer        rpc.WHIPServer[livekit.NodeID]
 	roomStore         ObjectStore
 	telemetry         telemetry.TelemetryService
+	analyticsSink     telemetry.ParticipantAnalyticsSink
 	clientConfManager clientconfiguration.ClientConfigurationManager
 	agentClient       agent.Client
 	agentStore        AgentStore
@@ -139,6 +141,7 @@ func NewLocalRoomManager(
 		roomAllocator:     roomAllocator,
 		roomStore:         roomStore,
 		telemetry:         telemetry,
+		analyticsSink:     newParticipantAnalyticsSink(conf),
 		clientConfManager: clientconfiguration.NewStaticClientConfigurationManager(clientconfiguration.StaticConfigurations),
 		egressLauncher:    egressLauncher,
 		agentClient:       agentClient,
@@ -634,7 +637,28 @@ func (r *RoomManager) StartSession(
 		// update room store with new numParticipants
 		proto := room.ToProto()
 		persistRoomForParticipantCount(proto)
-		r.telemetry.ParticipantLeft(ctx, proto, p.ToProto(), true, participant.TelemetryGuard())
+
+		pi := p.ToProto()
+		// assemble raw per-participant analytics for the participant_left webhook.
+		// Folded transport metrics live in the telemetry stats worker; codec metadata
+		// and layer-switch counts are read from the participant itself.
+		if r.analyticsSink != nil {
+			if pi != nil {
+				var join time.Time
+				if pi.JoinedAtMs > 0 {
+					join = time.UnixMilli(pi.JoinedAtMs)
+				} else if pi.JoinedAt > 0 {
+					join = time.Unix(pi.JoinedAt, 0)
+				}
+				if analytics := r.telemetry.BuildParticipantAnalytics(livekit.RoomID(proto.Sid), p.ID(), join, time.Now()); analytics != nil {
+					analytics.NodeIP = r.currentNode.NodeIP()
+					enrichParticipantAnalytics(analytics, p)
+					r.analyticsSink.Send(ctx, analytics)
+				}
+			}
+		}
+
+		r.telemetry.ParticipantLeft(ctx, proto, pi, true, participant.TelemetryGuard())
 	})
 	participant.OnClaimsChanged(func(participant types.LocalParticipant) {
 		pLogger.Debugw("refreshing client token after claims change")
@@ -1237,6 +1261,65 @@ func iceServerForStunServers(servers []string) *livekit.ICEServer {
 		iceServer.Urls = append(iceServer.Urls, fmt.Sprintf("stun:%s", stunServer))
 	}
 	return iceServer
+}
+
+// newParticipantAnalyticsSink builds the out-of-band analytics sink from the config.
+// Returns nil (delivery disabled) unless participant_analytics_url and a resolvable
+// API key/secret are configured.
+func newParticipantAnalyticsSink(conf *config.Config) telemetry.ParticipantAnalyticsSink {
+	if conf.ParticipantAnalyticsURL == "" {
+		return nil
+	}
+
+	apiKey := conf.WebHook.APIKey
+	return telemetry.NewParticipantAnalyticsSink(conf.ParticipantAnalyticsURL, apiKey, conf.Keys[apiKey])
+}
+
+// enrichParticipantAnalytics fills in the metrics that live on the participant rather
+// than in the telemetry stats stream: audio codec metadata (FEC/DTX/RED), the video
+// codec, and the subscriber-side layer-switch counts. Only raw values are read from
+// already-negotiated codec parameters and existing per-DownTrack counters.
+func enrichParticipantAnalytics(pa *telemetry.ParticipantAnalytics, p types.LocalParticipant) {
+	if ci := p.GetClientInfo(); ci != nil {
+		pa.ParticipantIP = ci.GetAddress()
+		pa.ParticipantASN = geoip.GetASOrganization(ci.GetAddress())
+		pa.Client = &telemetry.ParticipantClientInfo{
+			Sdk:             ci.GetSdk().String(),
+			SdkVersion:      ci.GetVersion(),
+			ProtocolVersion: ci.GetProtocol(),
+			Os:              ci.GetOs(),
+			OsVersion:       ci.GetOsVersion(),
+			DeviceModel:     ci.GetDeviceModel(),
+			Browser:         ci.GetBrowser(),
+			BrowserVersion:  ci.GetBrowserVersion(),
+			Network:         ci.GetNetwork(),
+			OtherSdks:       ci.GetOtherSdks(),
+			Country:         p.GetCountry(),
+		}
+	}
+
+	// Ensure Downstream exists for subscriber-side metrics
+	if pa.Downstream == nil {
+		pa.Downstream = &telemetry.ParticipantDownstreamStats{}
+	}
+
+	// subscriber-side layer-switch counts, summed across this participant's DownTracks.
+	simulcast, svc := p.GetSubscribedLayerSwitchCounts()
+	pa.Downstream.SimulcastLayerSwitchCount = simulcast
+	pa.Downstream.SvcLayerSwitchCount = svc
+
+	// subscriber-transport congestion control (send-side BWE).
+	cc := p.GetSubscriberCongestionAnalytics()
+	pa.Downstream.Congestion = &telemetry.ParticipantCongestionStats{
+		BweEstimateAvgBps:   cc.BweEstimateAvgBps,
+		BweEstimateMinBps:   cc.BweEstimateMinBps,
+		BweEstimateMaxBps:   cc.BweEstimateMaxBps,
+		TargetBitrateAvgBps: cc.TargetBitrateAvgBps,
+		TargetBitrateMinBps: cc.TargetBitrateMinBps,
+		TargetBitrateMaxBps: cc.TargetBitrateMaxBps,
+		OveruseEventCount:   cc.OveruseEventCount,
+		UnderuseEventCount:  cc.UnderuseEventCount,
+	}
 }
 
 // ------------------------------------
