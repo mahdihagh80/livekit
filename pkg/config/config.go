@@ -554,6 +554,13 @@ type PrometheusConfig struct {
 
 type DebugHandlerConfig struct {
 	Port uint32 `yaml:"port,omitempty"`
+	// sampling rates for the mutex and block profiles of /debug/pprof/, applied at start.
+	// Both default to 0 (off): sampling costs CPU on every contended lock and blocking
+	// operation. /debug/pprof/rates changes them at runtime, for the length of a profile.
+	// runtime.SetMutexProfileFraction: on average 1 in N contention events is reported
+	MutexProfileFraction int `yaml:"mutex_profile_fraction,omitempty"`
+	// runtime.SetBlockProfileRate: one event sampled per N nanoseconds spent blocked
+	BlockProfileRate int `yaml:"block_profile_rate,omitempty"`
 }
 
 type ForwardStatsConfig struct {

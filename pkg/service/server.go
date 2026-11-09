@@ -179,6 +179,11 @@ func NewLivekitServer(conf *config.Config,
 		debugMux.HandleFunc("/debug/pprof/profile", httppprof.Profile)
 		debugMux.HandleFunc("/debug/pprof/symbol", httppprof.Symbol)
 		debugMux.HandleFunc("/debug/pprof/trace", httppprof.Trace)
+		// mutex and block profiles are served by the index handler above; these rates feed them
+		debugMux.HandleFunc("/debug/pprof/rates", debugProfileRatesHandler)
+		if conf.DebugHandler.MutexProfileFraction > 0 || conf.DebugHandler.BlockProfileRate > 0 {
+			setDebugProfileRates(conf.DebugHandler.MutexProfileFraction, conf.DebugHandler.BlockProfileRate)
+		}
 		debugMux.HandleFunc("/debug/goroutine", s.debugGoroutines)
 		debugMux.HandleFunc("/debug/rooms", s.debugInfo)
 		s.debugServer = &http.Server{
