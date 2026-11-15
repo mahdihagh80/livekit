@@ -554,6 +554,9 @@ type PrometheusConfig struct {
 
 type DebugHandlerConfig struct {
 	Port uint32 `yaml:"port,omitempty"`
+	// address the debug server listens on, e.g. 127.0.0.1. Empty: the same addresses as the
+	// signal server (bind_addresses), which with host networking includes public interfaces.
+	BindAddress string `yaml:"bind_address,omitempty"`
 	// sampling rates for the mutex and block profiles of /debug/pprof/, applied at start.
 	// Both default to 0 (off): sampling costs CPU on every contended lock and blocking
 	// operation. /debug/pprof/rates changes them at runtime, for the length of a profile.

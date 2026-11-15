@@ -274,13 +274,20 @@ func (s *LivekitServer) Start() error {
 			promListeners = append(promListeners, ln)
 		}
 
-		if s.debugServer != nil {
+		if s.debugServer != nil && s.config.DebugHandler.BindAddress == "" {
 			ln, err = net.Listen("tcp", net.JoinHostPort(addr, strconv.Itoa(int(s.config.DebugHandler.Port))))
 			if err != nil {
 				return err
 			}
 			debugListeners = append(debugListeners, ln)
 		}
+	}
+	if s.debugServer != nil && s.config.DebugHandler.BindAddress != "" {
+		ln, err := net.Listen("tcp", net.JoinHostPort(s.config.DebugHandler.BindAddress, strconv.Itoa(int(s.config.DebugHandler.Port))))
+		if err != nil {
+			return err
+		}
+		debugListeners = append(debugListeners, ln)
 	}
 
 	if s.webtransportServer != nil {
