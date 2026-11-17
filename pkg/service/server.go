@@ -105,6 +105,10 @@ func NewLivekitServer(conf *config.Config,
 		closedChan:  make(chan struct{}),
 	}
 
+	if err = enableLocalRPC(conf, currentNode, router, roomManager, roomService, agentDispatchService); err != nil {
+		return nil, err
+	}
+
 	serverOptions := []any{
 		twirp.WithServerHooks(twirp.ChainHooks(
 			TwirpLogger(),

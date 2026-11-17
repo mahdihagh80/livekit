@@ -587,14 +587,17 @@ func (r *RoomManager) StartSession(
 
 	var participantServerClosers utils.Closers
 	participantTopic := rpc.FormatParticipantTopic(room.Name(), participant.Identity())
-	participantServer := must.Get(rpc.NewTypedParticipantServer(r, r.bus))
-	participantServerClosers = append(participantServerClosers, utils.CloseFunc(r.participantServers.Replace(participantTopic, participantServer)))
-	if err := participantServer.RegisterAllParticipantTopics(participantTopic); err != nil {
-		participantServerClosers.Close()
-		pLogger.Errorw("could not join register participant topic", err)
-		_ = participant.Close(true, types.ParticipantCloseReasonMessageBusFailed, false)
-		prometheus.IncrementParticipantRtcCanceled(1, enableWarp, pi.Client.GetSdk())
-		return err
+	// with local_rpc the API reaches participants in process only
+	if !r.config.LocalRPC.Enabled {
+		participantServer := must.Get(rpc.NewTypedParticipantServer(r, r.bus))
+		participantServerClosers = append(participantServerClosers, utils.CloseFunc(r.participantServers.Replace(participantTopic, participantServer)))
+		if err := participantServer.RegisterAllParticipantTopics(participantTopic); err != nil {
+			participantServerClosers.Close()
+			pLogger.Errorw("could not join register participant topic", err)
+			_ = participant.Close(true, types.ParticipantCloseReasonMessageBusFailed, false)
+			prometheus.IncrementParticipantRtcCanceled(1, enableWarp, pi.Client.GetSdk())
+			return err
+		}
 	}
 
 	if useOneShotSignallingMode {
@@ -718,21 +721,25 @@ func (r *RoomManager) getOrCreateRoom(ctx context.Context, createRoom *livekit.C
 	// construct ice servers
 	newRoom := rtc.NewRoom(ri, internal, *r.rtcConfig, r.config.Room, &r.config.Audio, r.serverInfo, r.telemetry, r.agentClient, r.agentStore, r.egressLauncher)
 
-	roomTopic := rpc.FormatRoomTopic(roomName)
-	roomServer := must.Get(rpc.NewTypedRoomServer(r, r.bus))
-	killRoomServer := r.roomServers.Replace(roomTopic, roomServer)
-	if err := roomServer.RegisterAllRoomTopics(roomTopic); err != nil {
-		killRoomServer()
-		r.lock.Unlock()
-		return nil, err
-	}
-	agentDispatchServer := must.Get(rpc.NewTypedAgentDispatchInternalServer(r, r.bus))
-	killDispServer := r.agentDispatchServers.Replace(roomTopic, agentDispatchServer)
-	if err := agentDispatchServer.RegisterAllRoomTopics(roomTopic); err != nil {
-		killRoomServer()
-		killDispServer()
-		r.lock.Unlock()
-		return nil, err
+	killRoomServer, killDispServer := func() {}, func() {}
+	// with local_rpc the API reaches rooms in process only
+	if !r.config.LocalRPC.Enabled {
+		roomTopic := rpc.FormatRoomTopic(roomName)
+		roomServer := must.Get(rpc.NewTypedRoomServer(r, r.bus))
+		killRoomServer = r.roomServers.Replace(roomTopic, roomServer)
+		if err := roomServer.RegisterAllRoomTopics(roomTopic); err != nil {
+			killRoomServer()
+			r.lock.Unlock()
+			return nil, err
+		}
+		agentDispatchServer := must.Get(rpc.NewTypedAgentDispatchInternalServer(r, r.bus))
+		killDispServer = r.agentDispatchServers.Replace(roomTopic, agentDispatchServer)
+		if err := agentDispatchServer.RegisterAllRoomTopics(roomTopic); err != nil {
+			killRoomServer()
+			killDispServer()
+			r.lock.Unlock()
+			return nil, err
+		}
 	}
 
 	newRoom.OnClose(func(reason types.RoomCloseReason) {

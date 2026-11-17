@@ -38,6 +38,9 @@ type LocalRouter struct {
 	requestChannels  map[string]*MessageChannel
 	responseChannels map[string]*MessageChannel
 	isStarted        atomic.Bool
+
+	// handlers called in process when the target node is this node (bale fork)
+	local atomic.Pointer[LocalHandlers]
 }
 
 func NewLocalRouter(
@@ -98,7 +101,16 @@ func (r *LocalRouter) CreateRoom(ctx context.Context, req *livekit.CreateRoomReq
 }
 
 func (r *LocalRouter) CreateRoomWithNodeID(ctx context.Context, req *livekit.CreateRoomRequest, nodeID livekit.NodeID) (res *livekit.Room, err error) {
+	if h := r.local.Load(); h != nil && h.RoomManager != nil && nodeID == r.currentNode.NodeID() {
+		return h.RoomManager.CreateRoom(ctx, req)
+	}
 	return r.roomManagerClient.CreateRoom(ctx, nodeID, req)
+}
+
+// SetLocalHandlers makes calls to this node skip psrpc (bale fork, config local_rpc).
+// Set it before the server starts serving.
+func (r *LocalRouter) SetLocalHandlers(h LocalHandlers) {
+	r.local.Store(&h)
 }
 
 func (r *LocalRouter) StartParticipantSignal(ctx context.Context, roomName livekit.RoomName, pi ParticipantInit) (res StartParticipantSignalResults, err error) {
@@ -106,7 +118,14 @@ func (r *LocalRouter) StartParticipantSignal(ctx context.Context, roomName livek
 }
 
 func (r *LocalRouter) StartParticipantSignalWithNodeID(ctx context.Context, roomName livekit.RoomName, pi ParticipantInit, nodeID livekit.NodeID) (res StartParticipantSignalResults, err error) {
-	connectionID, reqSink, resSource, err := r.signalClient.StartParticipantSignal(ctx, roomName, pi, nodeID)
+	var connectionID livekit.ConnectionID
+	var reqSink MessageSink
+	var resSource MessageSource
+	if h := r.local.Load(); h != nil && h.Session != nil && nodeID == r.currentNode.NodeID() {
+		connectionID, reqSink, resSource, err = StartLocalParticipantSignal(ctx, roomName, pi, nodeID, r.currentNode.Region(), h.Session)
+	} else {
+		connectionID, reqSink, resSource, err = r.signalClient.StartParticipantSignal(ctx, roomName, pi, nodeID)
+	}
 	if err != nil {
 		logger.Errorw(
 			"could not handle new participant", err,

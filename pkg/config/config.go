@@ -105,6 +105,8 @@ type Config struct {
 	Region                  string                   `yaml:"region,omitempty"`
 	SignalRelay             SignalRelayConfig        `yaml:"signal_relay,omitempty"`
 	PSRPC                   rpc.PSRPCConfig          `yaml:"psrpc,omitempty"`
+	// LocalRPC (bale fork) replaces psrpc inside the node, see LocalRPCConfig.
+	LocalRPC LocalRPCConfig `yaml:"local_rpc,omitempty"`
 	// Deprecated: LogLevel is deprecated
 	LogLevel string        `yaml:"log_level,omitempty"`
 	Logging  LoggingConfig `yaml:"logging,omitempty"`
@@ -374,6 +376,19 @@ type SignalRelayConfig struct {
 	MaxRetryInterval time.Duration `yaml:"max_retry_interval,omitempty"`
 	StreamBufferSize int           `yaml:"stream_buffer_size,omitempty"`
 	ConnectAttempts  int           `yaml:"connect_attempts,omitempty"`
+}
+
+// LocalRPCConfig (bale fork) replaces psrpc inside the node.
+type LocalRPCConfig struct {
+	// Enabled runs the signal connection in process, makes RoomService,
+	// AgentDispatchService and CreateRoom call RoomManager directly, and registers no
+	// per-room or per-participant psrpc servers. It requires a single node without
+	// Redis. Off keeps the upstream psrpc model.
+	Enabled bool `yaml:"enabled,omitempty"`
+	// UpdateRoomMetadataTimeout bounds RoomService.UpdateRoomMetadata, the only call that
+	// waits on the room: if the room closes during the call, it would wait forever. 0
+	// waits without a limit, until the caller cancels.
+	UpdateRoomMetadataTimeout time.Duration `yaml:"update_room_metadata_timeout,omitempty"`
 }
 
 // RegionConfig lists available regions and their latitude/longitude, so the selector would prefer
@@ -696,6 +711,7 @@ var DefaultConfig = Config{
 		TargetLoad: agent.DefaultTargetLoad,
 	},
 	PSRPC:            rpc.DefaultPSRPCConfig,
+	LocalRPC:         LocalRPCConfig{UpdateRoomMetadataTimeout: 3 * time.Second},
 	Keys:             map[string]string{},
 	Metric:           metric.DefaultMetricConfig,
 	WebHook:          webhook.DefaultWebHookConfig,

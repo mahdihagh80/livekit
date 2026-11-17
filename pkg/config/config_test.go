@@ -87,6 +87,38 @@ func TestConfig_PSRPCCompressionOverride(t *testing.T) {
 	require.Equal(t, 3, conf.PSRPC.MaxAttempts)
 }
 
+func TestConfig_LocalRPC(t *testing.T) {
+	t.Run("default", func(t *testing.T) {
+		conf, err := NewConfig("", true, nil, nil)
+		require.NoError(t, err)
+		require.False(t, conf.LocalRPC.Enabled)
+		require.Equal(t, 3*time.Second, conf.LocalRPC.UpdateRoomMetadataTimeout)
+	})
+
+	t.Run("enabled", func(t *testing.T) {
+		const content = `local_rpc:
+  enabled: true`
+		conf, err := NewConfig(content, true, nil, nil)
+		require.NoError(t, err)
+		require.True(t, conf.LocalRPC.Enabled)
+		require.Equal(t, 3*time.Second, conf.LocalRPC.UpdateRoomMetadataTimeout)
+	})
+
+	t.Run("timeout", func(t *testing.T) {
+		const content = `local_rpc:
+  enabled: true
+  update_room_metadata_timeout: 500ms`
+		conf, err := NewConfig(content, true, nil, nil)
+		require.NoError(t, err)
+		require.Equal(t, 500*time.Millisecond, conf.LocalRPC.UpdateRoomMetadataTimeout)
+	})
+
+	t.Run("old bool form", func(t *testing.T) {
+		_, err := NewConfig("local_rpc: true", true, nil, nil)
+		require.Error(t, err)
+	})
+}
+
 func TestConfig_UnknownKeys(t *testing.T) {
 	const content = `unknown: 10
 room:
