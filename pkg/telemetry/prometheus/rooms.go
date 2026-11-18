@@ -43,6 +43,7 @@ var (
 	promRoomCurrentWithNodeIP              prometheus.Gauge
 	promRoomDuration                       prometheus.Histogram
 	promParticipantCurrent                 prometheus.Gauge
+	promParticipantSignalCurrent           prometheus.Gauge
 	promTrackPublishedCurrent              *prometheus.GaugeVec
 	promTrackSubscribedCurrent             *prometheus.GaugeVec
 	promTrackPacketTrailerCurrent          prometheus.Gauge
@@ -80,6 +81,13 @@ func initRoomStats(nodeID string, nodeType livekit.NodeType) {
 		Namespace:   livekitNamespace,
 		Subsystem:   "participant",
 		Name:        "total",
+		ConstLabels: prometheus.Labels{"node_id": nodeID, "node_type": nodeType.String()},
+	})
+	promParticipantSignalCurrent = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace:   livekitNamespace,
+		Subsystem:   "participant_signal",
+		Name:        "total",
+		Help:        "Current number of participant signal connections served by this node; the participant may be hosted on another node.",
 		ConstLabels: prometheus.Labels{"node_id": nodeID, "node_type": nodeType.String()},
 	})
 	promTrackPublishedCurrent = prometheus.NewGaugeVec(prometheus.GaugeOpts{
@@ -178,6 +186,7 @@ func initRoomStats(nodeID string, nodeType livekit.NodeType) {
 	prometheus.MustRegister(promRoomCurrent)
 	prometheus.MustRegister(promRoomDuration)
 	prometheus.MustRegister(promParticipantCurrent)
+	prometheus.MustRegister(promParticipantSignalCurrent)
 	prometheus.MustRegister(promTrackPublishedCurrent)
 	prometheus.MustRegister(promTrackSubscribedCurrent)
 	prometheus.MustRegister(promTrackPacketTrailerCurrent)
@@ -225,6 +234,14 @@ func AddParticipant() {
 func SubParticipant() {
 	promParticipantCurrent.Sub(1)
 	participantCurrent.Dec()
+}
+
+func AddParticipantSignal() {
+	promParticipantSignalCurrent.Add(1)
+}
+
+func SubParticipantSignal() {
+	promParticipantSignalCurrent.Sub(1)
 }
 
 func AddPublishedTrack(kind string) {
